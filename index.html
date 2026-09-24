@@ -204,7 +204,7 @@
       `).join('');
 
       resultadosDiv.innerHTML = `
-        <div id="pdf-content" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1);font-family:system-ui,sans-serif;">
+        <div id="pdf-content" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1);font-family:Arial,sans-serif;">
           
           <div style="background:#009ca6;color:white;padding:24px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -241,26 +241,45 @@
     }
 
     function descargarPDF() {
-      const element = document.getElementById('pdf-content');
-      if (!element) {
+      const dataElement = document.getElementById('pdf-content');
+      if (!dataElement) {
         alert('No hay resultados para descargar');
         return;
       }
 
+      // Contenedor limpio solo para el PDF
+      const temp = document.createElement('div');
+      temp.style.position = 'fixed';
+      temp.style.left = '-9999px';
+      temp.style.top = '0';
+      temp.style.width = '700px';
+      temp.style.background = '#ffffff';
+      temp.style.padding = '20px';
+      temp.style.fontFamily = 'Arial, sans-serif';
+      temp.innerHTML = dataElement.innerHTML;
+
+      document.body.appendChild(temp);
+
       const opt = {
-        margin:       [0.4, 0.4, 0.4, 0.4],
+        margin:       0.5,
         filename:     'Resultados_ICFES_Saber11.pdf',
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { 
-          scale: 2, 
+          scale: 2,
           useCORS: true,
           backgroundColor: '#ffffff',
-          logging: false
+          logging: false,
+          windowWidth: 700
         },
         jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
       };
 
-      html2pdf().set(opt).from(element).save();
+      html2pdf().set(opt).from(temp).save().then(() => {
+        document.body.removeChild(temp);
+      }).catch(() => {
+        document.body.removeChild(temp);
+        alert('Error al generar el PDF. Usa el botón Imprimir y elige "Guardar como PDF".');
+      });
     }
   </script>
 </body>
