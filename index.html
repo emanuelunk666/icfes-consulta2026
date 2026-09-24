@@ -78,9 +78,31 @@
       </button>
     </div>
 
+    <!-- Aviso -->
     <div class="mt-5 p-4 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-200 text-sm text-center">
       Los resultados de <strong>Saber 11 2026</strong> se publican el <strong>25 de septiembre</strong>.
       <br>Por ahora solo puedes verificar tus datos de registro.
+    </div>
+
+    <!-- Contacto -->
+    <div class="mt-4 p-4 rounded-xl bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 text-center text-sm">
+      <p class="text-slate-500 dark:text-gray-400 mb-3">¿Problemas con la consulta?</p>
+      <div class="flex flex-col sm:flex-row justify-center gap-3">
+        <a 
+          href="https://wa.me/573192463799?text=Hola%2C%20tengo%20un%20problema%20consultando%20mis%20resultados%20ICFES"
+          target="_blank"
+          class="inline-flex items-center justify-center gap-2 text-green-600 dark:text-green-400 hover:underline font-medium"
+        >
+          💬 WhatsApp
+        </a>
+        <a 
+          href="https://www.tiktok.com/@emanuelunk"
+          target="_blank"
+          class="inline-flex items-center justify-center gap-2 text-pink-500 hover:underline font-medium"
+        >
+          🎵 TikTok
+        </a>
+      </div>
     </div>
 
     <div id="error" class="hidden mt-4 p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-300 text-sm text-center"></div>
@@ -136,7 +158,7 @@
         resultadosDiv.innerHTML = `
           <div class="bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl p-4">
             <p class="text-sm font-medium mb-2">Respuesta para ${numeroRegistro}:</p>
-            <pre class="text-xs overflow-auto max-h-80 bg-black/20 p-3 rounded-lg">${JSON.stringify(data, null, 2)}</pre>
+            <pre class="text-xs overflow-auto max-h-96 bg-black/20 p-3 rounded-lg">${JSON.stringify(data, null, 2)}</pre>
           </div>
         `;
       } catch (err) {
