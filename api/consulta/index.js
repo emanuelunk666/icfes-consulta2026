@@ -18,18 +18,19 @@ module.exports = async (req, res) => {
     if (!tipoDocumento || !numeroDocumento || !fechaNacimiento) {
       return res.status(400).json({
         success: false,
-        error: 'Faltan campos obligatorios'
+        error: 'Faltan campos obligatorios (tipo de documento, número y fecha de nacimiento)'
       });
     }
 
-    let fechaFormateada = fechaNacimiento;
-    if (String(fechaNacimiento).includes('-')) {
-      const [y, m, d] = fechaNacimiento.split('-');
-      fechaFormateada = `${d}/${m}/${y}`;
+    // Formatear fecha si viene como yyyy-mm-dd
+    let fechaFormateada = String(fechaNacimiento).trim();
+    if (fechaFormateada.includes('-')) {
+      const [y, m, d] = fechaFormateada.split('-');
+      fechaFormateada = `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
     }
 
     const payload = {
-      tipoDocumento: String(tipoDocumento).toUpperCase(),
+      tipoDocumento: String(tipoDocumento).toUpperCase().trim(),
       numeroDocumento: String(numeroDocumento).trim(),
       fechaNacimiento: fechaFormateada,
       numeroRegistro: numeroRegistro || '',
@@ -41,7 +42,7 @@ module.exports = async (req, res) => {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Origin': 'https://resultados.icfes.gov.co',
         'Referer': 'https://resultados.icfes.gov.co/'
       },
@@ -53,17 +54,22 @@ module.exports = async (req, res) => {
     if (!r.ok) {
       return res.status(r.status).json({
         success: false,
-        error: data?.message || data?.mensaje || data?.error || `Error ${r.status}`,
+        error: data?.message || data?.mensaje || data?.error || `Error del ICFES (${r.status})`,
         data
       });
     }
 
-    return res.status(200).json({ success: true, data });
+    // Respuesta limpia
+    return res.status(200).json({
+      success: true,
+      datosAutenticacion: data?.datosAutenticacion || data || []
+    });
+
   } catch (err) {
     console.error(err);
     return res.status(500).json({
       success: false,
-      error: 'Error interno',
+      error: 'Error interno del servidor',
       details: err.message
     });
   }
