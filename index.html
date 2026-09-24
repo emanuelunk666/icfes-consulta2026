@@ -57,10 +57,21 @@
         <input id="numeroDocumento" type="text" placeholder="Ej: 1098765432" class="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm" />
       </div>
 
-      <div>
-        <label class="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Fecha de nacimiento</label>
-        <input id="fechaNacimiento" type="text" placeholder="dd/mm/aaaa" class="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm" />
-      </div>
+    <div>
+  <label class="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Fecha de nacimiento</label>
+  <input 
+    id="fechaNacimiento" 
+    type="text" 
+    placeholder="dd/mm/aaaa" 
+    maxlength="10"
+    class="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm"
+    oninput="this.value = this.value
+      .replace(/\D/g, '')
+      .replace(/^(\d{2})(\d)/, '$1/$2')
+      .replace(/^(\d{2}\/\d{2})(\d)/, '$1/$2')
+      .slice(0, 10)"
+  />
+</div>
 
       <button onclick="consultar()" id="btnConsultar" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3.5 rounded-xl">
         Consultar resultados
