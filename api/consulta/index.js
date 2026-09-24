@@ -13,64 +13,32 @@ module.exports = async (req, res) => {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    
     const { tipoDocumento, numeroDocumento, fechaNacimiento, numeroRegistro = '' } = body;
 
-    if (!tipoDocumento || !numeroDocumento || !fechaNacimiento) {
-      return res.status(400).json({
-        success: false,
-        error: 'Faltan campos obligatorios (tipo de documento, número y fecha de nacimiento)'
-      });
-    }
-
-    // Formatear fecha si viene como yyyy-mm-dd
-    let fechaFormateada = String(fechaNacimiento).trim();
-    if (fechaFormateada.includes('-')) {
-      const [y, m, d] = fechaFormateada.split('-');
-      fechaFormateada = `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
-    }
-
-    const payload = {
-      tipoDocumento: String(tipoDocumento).toUpperCase().trim(),
-      numeroDocumento: String(numeroDocumento).trim(),
-      fechaNacimiento: fechaFormateada,
-      numeroRegistro: numeroRegistro || '',
-      captcha: 'dummy_token'
-    };
-
-    const r = await fetch('https://resultadosbackend.icfes.gov.co/api/segurity/autenticacionResultados', {
+    // Llamamos a tu Worker de Cloudflare
+    const response = await fetch('https://consulta-icfes.emanuel-tenorio.workers.dev/api/consultar', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Origin': 'https://resultados.icfes.gov.co',
-        'Referer': 'https://resultados.icfes.gov.co/'
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        docType: tipoDocumento,
+        document: numeroDocumento,
+        born: fechaNacimiento,
+        registro: numeroRegistro
+      })
     });
 
-    const data = await r.json().catch(() => null);
-
-    if (!r.ok) {
-      return res.status(r.status).json({
-        success: false,
-        error: data?.message || data?.mensaje || data?.error || `Error del ICFES (${r.status})`,
-        data
-      });
-    }
-
-    // Respuesta limpia
-    return res.status(200).json({
-      success: true,
-      datosAutenticacion: data?.datosAutenticacion || data || []
-    });
+    const data = await response.json();
+    
+    // Devolvemos la respuesta tal como viene
+    return res.status(response.status).json(data);
 
   } catch (err) {
-    console.error(err);
     return res.status(500).json({
       success: false,
-      error: 'Error interno del servidor',
-      details: err.message
+      error: 'Error al conectar con el servidor: ' + err.message
     });
   }
 };
