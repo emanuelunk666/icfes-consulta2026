@@ -57,21 +57,21 @@
         <input id="numeroDocumento" type="text" placeholder="Ej: 1098765432" class="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm" />
       </div>
 
-    <div>
-  <label class="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Fecha de nacimiento</label>
-  <input 
-    id="fechaNacimiento" 
-    type="text" 
-    placeholder="dd/mm/aaaa" 
-    maxlength="10"
-    class="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm"
-    oninput="this.value = this.value
-      .replace(/\D/g, '')
-      .replace(/^(\d{2})(\d)/, '$1/$2')
-      .replace(/^(\d{2}\/\d{2})(\d)/, '$1/$2')
-      .slice(0, 10)"
-  />
-</div>
+      <div>
+        <label class="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Fecha de nacimiento</label>
+        <input 
+          id="fechaNacimiento" 
+          type="text" 
+          placeholder="dd/mm/aaaa" 
+          maxlength="10"
+          class="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm"
+          oninput="this.value = this.value
+            .replace(/\D/g, '')
+            .replace(/^(\d{2})(\d)/, '$1/$2')
+            .replace(/^(\d{2}\/\d{2})(\d)/, '$1/$2')
+            .slice(0, 10)"
+        />
+      </div>
 
       <button onclick="consultar()" id="btnConsultar" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3.5 rounded-xl">
         Consultar resultados
@@ -100,10 +100,52 @@
       localStorage.setItem('theme', isDark ? 'dark' : 'light');
     }
 
-    // Cargar tema guardado
     if (localStorage.getItem('theme') === 'dark') {
       document.documentElement.classList.add('dark');
       document.getElementById('themeIcon').textContent = '☀️';
+    }
+
+    async function seleccionarRegistro(numeroRegistro, fechaNacimiento) {
+      const tipoDocumento = document.getElementById('tipoDocumento').value;
+      const numeroDocumento = document.getElementById('numeroDocumento').value.trim();
+      const btn = document.getElementById('btnConsultar');
+      const errorDiv = document.getElementById('error');
+      const resultadosDiv = document.getElementById('resultados');
+
+      errorDiv.classList.add('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Cargando resultados...';
+
+      try {
+        const res = await fetch('/api/consulta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tipoDocumento,
+            numeroDocumento,
+            fechaNacimiento,
+            numeroRegistro: numeroRegistro
+          })
+        });
+
+        const data = await res.json();
+        console.log('Respuesta:', data);
+
+        if (!res.ok) throw new Error(data.error || 'Error al cargar resultados');
+
+        resultadosDiv.innerHTML = `
+          <div class="bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl p-4">
+            <p class="text-sm font-medium mb-2">Respuesta para ${numeroRegistro}:</p>
+            <pre class="text-xs overflow-auto max-h-80 bg-black/20 p-3 rounded-lg">${JSON.stringify(data, null, 2)}</pre>
+          </div>
+        `;
+      } catch (err) {
+        errorDiv.textContent = err.message || 'No se pudieron cargar los resultados';
+        errorDiv.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Consultar resultados';
+      }
     }
 
     async function consultar() {
@@ -151,10 +193,13 @@
         } else {
           resultadosDiv.innerHTML = `
             <h3 class="text-sm font-medium text-slate-600 dark:text-gray-300 mb-3">
-              Se encontraron ${registros.length} registro(s)
+              Se encontraron ${registros.length} registro(s) — haz clic en uno
             </h3>
             ${registros.map(item => `
-              <div class="bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl p-4">
+              <button 
+                onclick="seleccionarRegistro('${item.numeroRegistro || ''}', '${fechaNacimiento}')"
+                class="w-full text-left bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl p-4 hover:border-blue-500 transition mb-3"
+              >
                 <div class="flex justify-between items-start mb-2">
                   <span class="font-medium text-blue-600 dark:text-blue-400">${item.numeroRegistro || '—'}</span>
                   <span class="text-xs text-slate-500 dark:text-gray-400">${item.anioExamen || ''} · Período ${item.periodoExamen || ''}</span>
@@ -163,7 +208,8 @@
                   <p>Examen: ${item.datosParametros?.examen || 'Saber 11'}</p>
                   <p>Nacimiento: ${item.datosParametros?.fechaNacimiento || fechaNacimiento}</p>
                 </div>
-              </div>
+                <p class="text-xs text-blue-500 mt-2">👆 Clic para intentar cargar resultados</p>
+              </button>
             `).join('')}
           `;
           resultadosDiv.classList.remove('hidden');
