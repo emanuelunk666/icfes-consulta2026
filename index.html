@@ -39,7 +39,7 @@
   <!-- Card -->
   <div class="w-full max-w-md bg-white dark:bg-[#1e293b] rounded-2xl p-6 shadow-xl border border-slate-200 dark:border-white/5">
     <h2 class="text-xl font-semibold mb-1">Consulta tu puntaje</h2>
-    <p class="text-sm text-slate-500 dark:text-gray-400 mb-6">Ingresa tus datos para verificar tu registro</p>
+    <p class="text-sm text-slate-500 dark:text-gray-400 mb-6">Ingresa tus datos para ver tus resultados</p>
 
     <div class="space-y-4">
       <div>
@@ -81,7 +81,6 @@
     <!-- Aviso -->
     <div class="mt-5 p-4 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-200 text-sm text-center">
       Los resultados de <strong>Saber 11 2026</strong> se publican el <strong>25 de septiembre</strong>.
-      <br>Por ahora solo puedes verificar tus datos de registro.
     </div>
 
     <!-- Contacto -->
@@ -127,49 +126,6 @@
       document.getElementById('themeIcon').textContent = '☀️';
     }
 
-    async function seleccionarRegistro(numeroRegistro, fechaNacimiento) {
-      const tipoDocumento = document.getElementById('tipoDocumento').value;
-      const numeroDocumento = document.getElementById('numeroDocumento').value.trim();
-      const btn = document.getElementById('btnConsultar');
-      const errorDiv = document.getElementById('error');
-      const resultadosDiv = document.getElementById('resultados');
-
-      errorDiv.classList.add('hidden');
-      btn.disabled = true;
-      btn.textContent = 'Cargando resultados...';
-
-      try {
-        const res = await fetch('/api/consulta', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tipoDocumento,
-            numeroDocumento,
-            fechaNacimiento,
-            numeroRegistro: numeroRegistro
-          })
-        });
-
-        const data = await res.json();
-        console.log('Respuesta:', data);
-
-        if (!res.ok) throw new Error(data.error || 'Error al cargar resultados');
-
-        resultadosDiv.innerHTML = `
-          <div class="bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl p-4">
-            <p class="text-sm font-medium mb-2">Respuesta para ${numeroRegistro}:</p>
-            <pre class="text-xs overflow-auto max-h-96 bg-black/20 p-3 rounded-lg">${JSON.stringify(data, null, 2)}</pre>
-          </div>
-        `;
-      } catch (err) {
-        errorDiv.textContent = err.message || 'No se pudieron cargar los resultados';
-        errorDiv.classList.remove('hidden');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Consultar resultados';
-      }
-    }
-
     async function consultar() {
       const tipoDocumento = document.getElementById('tipoDocumento').value;
       const numeroDocumento = document.getElementById('numeroDocumento').value.trim();
@@ -183,7 +139,7 @@
       resultadosDiv.innerHTML = '';
 
       if (!numeroDocumento || !fechaNacimiento) {
-        errorDiv.textContent = 'Completa todos los campos';
+        errorDiv.textContent = 'Por favor completa todos los campos';
         errorDiv.classList.remove('hidden');
         return;
       }
@@ -205,37 +161,41 @@
 
         const data = await res.json();
 
-        if (!res.ok) throw new Error(data.error || 'Error en la consulta');
+        // Resultados completos
+        if (data.success && data.puntajeGlobal !== undefined) {
+          mostrarResultadosCompletos(data);
+          return;
+        }
 
+        // Error del backend
+        if (data.success === false) {
+          errorDiv.textContent = data.message || data.error || 'No se encontraron resultados';
+          errorDiv.classList.remove('hidden');
+          return;
+        }
+
+        // Fallback lista de registros
         const registros = data.datosAutenticacion || [];
-
         if (registros.length === 0) {
           errorDiv.textContent = 'No se encontraron registros con esos datos';
           errorDiv.classList.remove('hidden');
         } else {
           resultadosDiv.innerHTML = `
             <h3 class="text-sm font-medium text-slate-600 dark:text-gray-300 mb-3">
-              Se encontraron ${registros.length} registro(s) — haz clic en uno
+              Se encontraron ${registros.length} registro(s)
             </h3>
             ${registros.map(item => `
-              <button 
-                onclick="seleccionarRegistro('${item.numeroRegistro || ''}', '${fechaNacimiento}')"
-                class="w-full text-left bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl p-4 hover:border-blue-500 transition mb-3"
-              >
+              <div class="w-full text-left bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl p-4 mb-3">
                 <div class="flex justify-between items-start mb-2">
                   <span class="font-medium text-blue-600 dark:text-blue-400">${item.numeroRegistro || '—'}</span>
                   <span class="text-xs text-slate-500 dark:text-gray-400">${item.anioExamen || ''} · Período ${item.periodoExamen || ''}</span>
                 </div>
-                <div class="text-xs text-slate-500 dark:text-gray-400 space-y-1">
-                  <p>Examen: ${item.datosParametros?.examen || 'Saber 11'}</p>
-                  <p>Nacimiento: ${item.datosParametros?.fechaNacimiento || fechaNacimiento}</p>
-                </div>
-                <p class="text-xs text-blue-500 mt-2">👆 Clic para intentar cargar resultados</p>
-              </button>
+              </div>
             `).join('')}
           `;
           resultadosDiv.classList.remove('hidden');
         }
+
       } catch (err) {
         errorDiv.textContent = err.message || 'Error al consultar';
         errorDiv.classList.remove('hidden');
@@ -243,6 +203,41 @@
         btn.disabled = false;
         btn.textContent = 'Consultar resultados';
       }
+    }
+
+    function mostrarResultadosCompletos(data) {
+      const resultadosDiv = document.getElementById('resultados');
+
+      const pruebasHTML = (data.pruebas || []).map(p => `
+        <div class="bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl p-4">
+          <div class="flex justify-between items-center mb-1">
+            <span class="font-medium">${p.nombrePrueba}</span>
+            <span class="text-lg font-bold text-blue-600 dark:text-blue-400">${p.puntajePrueba}</span>
+          </div>
+          <div class="text-xs text-slate-500 dark:text-gray-400">
+            Percentil: ${p.percentilNacional || '—'} · Nivel: ${p.nivelDesempeno || '—'}
+          </div>
+        </div>
+      `).join('');
+
+      resultadosDiv.innerHTML = `
+        <div class="bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl p-5 mb-4">
+          <p class="text-sm opacity-90 mb-1">${data.estudiante || 'Estudiante'}</p>
+          <div class="flex items-end gap-2">
+            <span class="text-4xl font-bold">${data.puntajeGlobal}</span>
+            <span class="text-lg opacity-80 mb-1">/ 500</span>
+          </div>
+          <p class="text-sm mt-2 opacity-90">Percentil nacional: <strong>${data.percentilNacional}%</strong></p>
+          <p class="text-xs mt-1 opacity-75">Registro: ${data.registro || '—'}</p>
+        </div>
+
+        <h3 class="text-sm font-medium text-slate-600 dark:text-gray-300 mb-3">Desglose por materias</h3>
+        <div class="space-y-3">
+          ${pruebasHTML}
+        </div>
+      `;
+
+      resultadosDiv.classList.remove('hidden');
     }
   </script>
 </body>
