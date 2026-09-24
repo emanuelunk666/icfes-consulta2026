@@ -5,56 +5,52 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Consulta ICFES 2026</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script>
-    tailwind.config = {
-      darkMode: 'class'
-    }
+    tailwind.config = { darkMode: 'class' }
   </script>
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#0f172a] dark:text-white flex flex-col items-center px-4 py-8">
+<body class="min-h-screen bg-slate-100 text-slate-900 dark:bg-[#0b1220] dark:text-white flex flex-col items-center px-4 py-8">
 
   <!-- Header -->
   <div class="w-full max-w-md flex items-center justify-between mb-8">
     <div class="flex items-center gap-3">
-      <div class="w-11 h-11 bg-blue-600 rounded-xl flex items-center justify-center font-bold text-lg text-white">
+      <div class="w-11 h-11 bg-[#009ca6] rounded-xl flex items-center justify-center font-bold text-lg text-white shadow">
         I
       </div>
       <div>
         <h1 class="font-semibold text-lg">Consulta ICFES</h1>
-        <p class="text-xs text-slate-500 dark:text-gray-400">Resultados Saber 11</p>
+        <p class="text-xs text-slate-500 dark:text-gray-400">Resultados Saber 11 · 2026</p>
       </div>
     </div>
-
-    <div class="flex items-center gap-3">
-      <div class="hidden sm:flex items-center gap-2 text-xs bg-green-500/10 text-green-600 dark:text-green-400 px-3 py-1.5 rounded-full border border-green-500/20">
-        <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-        API activa
-      </div>
-      <button onclick="toggleTheme()" class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-lg">
-        <span id="themeIcon">🌙</span>
-      </button>
-    </div>
+    <button onclick="toggleTheme()" class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-lg">
+      <span id="themeIcon">🌙</span>
+    </button>
   </div>
 
-  <!-- Card -->
-  <div class="w-full max-w-md bg-white dark:bg-[#1e293b] rounded-2xl p-6 shadow-xl border border-slate-200 dark:border-white/5">
+  <!-- Card de consulta -->
+  <div class="w-full max-w-md bg-white dark:bg-[#151d2e] rounded-2xl p-6 shadow-xl border border-slate-200 dark:border-white/5">
     <h2 class="text-xl font-semibold mb-1">Consulta tu puntaje</h2>
-    <p class="text-sm text-slate-500 dark:text-gray-400 mb-6">Ingresa tus datos para ver tus resultados</p>
+    <p class="text-sm text-slate-500 dark:text-gray-400 mb-6">Ingresa los datos con los que te registraste</p>
 
     <div class="space-y-4">
       <div>
         <label class="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Tipo de documento</label>
-        <select id="tipoDocumento" class="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm">
+        <select id="tipoDocumento" class="w-full bg-slate-50 dark:bg-[#0b1220] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm">
           <option value="TI">Tarjeta de Identidad (TI)</option>
           <option value="CC">Cédula de Ciudadanía (CC)</option>
           <option value="CE">Cédula de Extranjería (CE)</option>
+          <option value="CR">Contraseña (CR)</option>
+          <option value="PEP">Permiso Especial (PEP)</option>
+          <option value="PPT">Permiso por Protección Temporal (PPT)</option>
+          <option value="NES">Número de Establecimiento (NES)</option>
           <option value="PA">Pasaporte (PA)</option>
         </select>
       </div>
 
       <div>
         <label class="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Número de documento</label>
-        <input id="numeroDocumento" type="text" placeholder="Ej: 1098765432" class="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm" />
+        <input id="numeroDocumento" type="text" placeholder="Ej: 1098765432" class="w-full bg-slate-50 dark:bg-[#0b1220] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm" />
       </div>
 
       <div>
@@ -64,7 +60,7 @@
           type="text" 
           placeholder="dd/mm/aaaa" 
           maxlength="10"
-          class="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm"
+          class="w-full bg-slate-50 dark:bg-[#0b1220] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm"
           oninput="this.value = this.value
             .replace(/\D/g, '')
             .replace(/^(\d{2})(\d)/, '$1/$2')
@@ -73,42 +69,23 @@
         />
       </div>
 
-      <button onclick="consultar()" id="btnConsultar" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3.5 rounded-xl">
+      <div>
+        <label class="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Número de registro <span class="opacity-60">(opcional)</span></label>
+        <input id="numeroRegistro" type="text" placeholder="Ej: AC202631012061" class="w-full bg-slate-50 dark:bg-[#0b1220] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm" />
+      </div>
+
+      <button onclick="consultar()" id="btnConsultar" class="w-full bg-[#009ca6] hover:bg-[#008892] text-white font-medium py-3.5 rounded-xl transition">
         Consultar resultados
       </button>
     </div>
 
-    <!-- Aviso -->
-    <div class="mt-5 p-4 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-800 dark:text-amber-200 text-sm text-center">
-      Los resultados de <strong>Saber 11 2026</strong> se publican el <strong>25 de septiembre</strong>.
-    </div>
-
-    <!-- Contacto -->
-    <div class="mt-4 p-4 rounded-xl bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 text-center text-sm">
-      <p class="text-slate-500 dark:text-gray-400 mb-3">¿Problemas con la consulta?</p>
-      <div class="flex flex-col sm:flex-row justify-center gap-3">
-        <a 
-          href="https://wa.me/573192463799?text=Hola%2C%20tengo%20un%20problema%20consultando%20mis%20resultados%20ICFES"
-          target="_blank"
-          class="inline-flex items-center justify-center gap-2 text-green-600 dark:text-green-400 hover:underline font-medium"
-        >
-          💬 WhatsApp
-        </a>
-        <a 
-          href="https://www.tiktok.com/@emanuelunk"
-          target="_blank"
-          class="inline-flex items-center justify-center gap-2 text-pink-500 hover:underline font-medium"
-        >
-          🎵 TikTok
-        </a>
-      </div>
-    </div>
-
     <div id="error" class="hidden mt-4 p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-300 text-sm text-center"></div>
-    <div id="resultados" class="mt-6 space-y-3 hidden"></div>
   </div>
 
-  <p class="mt-8 text-xs text-slate-400 dark:text-gray-500 text-center">
+  <!-- Resultados -->
+  <div id="resultados" class="w-full max-w-md mt-6 hidden"></div>
+
+  <p class="mt-8 text-xs text-slate-400 dark:text-gray-500 text-center max-w-md">
     Esta herramienta consulta el backend oficial del ICFES.<br>
     No almacena tus datos personales.
   </p>
@@ -130,6 +107,7 @@
       const tipoDocumento = document.getElementById('tipoDocumento').value;
       const numeroDocumento = document.getElementById('numeroDocumento').value.trim();
       const fechaNacimiento = document.getElementById('fechaNacimiento').value.trim();
+      const numeroRegistro = document.getElementById('numeroRegistro').value.trim();
       const btn = document.getElementById('btnConsultar');
       const errorDiv = document.getElementById('error');
       const resultadosDiv = document.getElementById('resultados');
@@ -139,7 +117,7 @@
       resultadosDiv.innerHTML = '';
 
       if (!numeroDocumento || !fechaNacimiento) {
-        errorDiv.textContent = 'Por favor completa todos los campos';
+        errorDiv.textContent = 'Por favor completa número de documento y fecha de nacimiento';
         errorDiv.classList.remove('hidden');
         return;
       }
@@ -155,46 +133,25 @@
             tipoDocumento,
             numeroDocumento,
             fechaNacimiento,
-            numeroRegistro: ''
+            numeroRegistro: numeroRegistro || ''
           })
         });
 
         const data = await res.json();
 
-        // Resultados completos
         if (data.success && data.puntajeGlobal !== undefined) {
           mostrarResultadosCompletos(data);
           return;
         }
 
-        // Error del backend
         if (data.success === false) {
           errorDiv.textContent = data.message || data.error || 'No se encontraron resultados';
           errorDiv.classList.remove('hidden');
           return;
         }
 
-        // Fallback lista de registros
-        const registros = data.datosAutenticacion || [];
-        if (registros.length === 0) {
-          errorDiv.textContent = 'No se encontraron registros con esos datos';
-          errorDiv.classList.remove('hidden');
-        } else {
-          resultadosDiv.innerHTML = `
-            <h3 class="text-sm font-medium text-slate-600 dark:text-gray-300 mb-3">
-              Se encontraron ${registros.length} registro(s)
-            </h3>
-            ${registros.map(item => `
-              <div class="w-full text-left bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl p-4 mb-3">
-                <div class="flex justify-between items-start mb-2">
-                  <span class="font-medium text-blue-600 dark:text-blue-400">${item.numeroRegistro || '—'}</span>
-                  <span class="text-xs text-slate-500 dark:text-gray-400">${item.anioExamen || ''} · Período ${item.periodoExamen || ''}</span>
-                </div>
-              </div>
-            `).join('')}
-          `;
-          resultadosDiv.classList.remove('hidden');
-        }
+        errorDiv.textContent = 'No se encontraron resultados con esos datos';
+        errorDiv.classList.remove('hidden');
 
       } catch (err) {
         errorDiv.textContent = err.message || 'Error al consultar';
@@ -209,35 +166,62 @@
       const resultadosDiv = document.getElementById('resultados');
 
       const pruebasHTML = (data.pruebas || []).map(p => `
-        <div class="bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl p-4">
-          <div class="flex justify-between items-center mb-1">
-            <span class="font-medium">${p.nombrePrueba}</span>
-            <span class="text-lg font-bold text-blue-600 dark:text-blue-400">${p.puntajePrueba}</span>
+        <div class="flex items-center justify-between py-3 border-b border-slate-100 dark:border-white/5 last:border-0">
+          <div>
+            <p class="font-medium text-sm">${p.nombrePrueba}</p>
+            <p class="text-xs text-slate-500 dark:text-gray-400">Percentil ${p.percentilNacional || '—'} · Nivel ${p.nivelDesempeno || '—'}</p>
           </div>
-          <div class="text-xs text-slate-500 dark:text-gray-400">
-            Percentil: ${p.percentilNacional || '—'} · Nivel: ${p.nivelDesempeno || '—'}
-          </div>
+          <div class="text-2xl font-bold text-[#009ca6]">${p.puntajePrueba}</div>
         </div>
       `).join('');
 
       resultadosDiv.innerHTML = `
-        <div class="bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl p-5 mb-4">
-          <p class="text-sm opacity-90 mb-1">${data.estudiante || 'Estudiante'}</p>
-          <div class="flex items-end gap-2">
-            <span class="text-4xl font-bold">${data.puntajeGlobal}</span>
-            <span class="text-lg opacity-80 mb-1">/ 500</span>
+        <div id="pdf-content" class="bg-white dark:bg-[#151d2e] rounded-2xl shadow-xl border border-slate-200 dark:border-white/5 overflow-hidden">
+          
+          <div class="bg-[#009ca6] text-white px-6 py-5">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-medium bg-white/20 px-2.5 py-1 rounded-full">SABER 11 · 2026</span>
+              <span class="text-xs opacity-80">OFICIAL ICFES</span>
+            </div>
+            <p class="text-sm opacity-90 mb-1">${data.estudiante || 'Estudiante'}</p>
+            <div class="flex items-end gap-2">
+              <span class="text-5xl font-bold tracking-tight">${data.puntajeGlobal}</span>
+              <span class="text-lg opacity-80 mb-1.5">/ 500</span>
+            </div>
+            <p class="text-sm mt-2 opacity-90">Percentil nacional: <strong>${data.percentilNacional}%</strong></p>
+            <p class="text-xs mt-1 opacity-70">Registro: ${data.registro || '—'}</p>
           </div>
-          <p class="text-sm mt-2 opacity-90">Percentil nacional: <strong>${data.percentilNacional}%</strong></p>
-          <p class="text-xs mt-1 opacity-75">Registro: ${data.registro || '—'}</p>
-        </div>
 
-        <h3 class="text-sm font-medium text-slate-600 dark:text-gray-300 mb-3">Desglose por materias</h3>
-        <div class="space-y-3">
-          ${pruebasHTML}
+          <div class="px-6 py-4">
+            <h3 class="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider mb-3">Desglose por prueba</h3>
+            ${pruebasHTML}
+          </div>
+
+          <div class="px-6 pb-5 flex gap-3">
+            <button onclick="descargarPDF()" class="flex-1 bg-[#009ca6] hover:bg-[#008892] text-white font-medium py-3 rounded-xl text-sm transition">
+              📄 Descargar PDF
+            </button>
+            <button onclick="window.print()" class="flex-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-medium py-3 rounded-xl text-sm transition">
+              🖨️ Imprimir
+            </button>
+          </div>
         </div>
       `;
 
       resultadosDiv.classList.remove('hidden');
+      resultadosDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function descargarPDF() {
+      const element = document.getElementById('pdf-content');
+      const opt = {
+        margin: 0.4,
+        filename: 'Resultados_ICFES_Saber11.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
     }
   </script>
 </body>
