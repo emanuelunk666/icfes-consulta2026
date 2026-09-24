@@ -1,0 +1,10 @@
+{
+  "name": "icfes-consulta",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Consulta de resultados ICFES - Frontend + Proxy",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev"
+  }
+}
