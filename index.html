@@ -5,42 +5,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Consulta ICFES 2026</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+    }
+  </script>
   <style>
     body {
-      background: #0f172a;
+      transition: background-color 0.3s, color 0.3s;
     }
   </style>
 </head>
-<body class="min-h-screen text-white flex flex-col items-center px-4 py-10">
+<body class="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#0f172a] dark:text-white flex flex-col items-center px-4 py-8 transition-colors">
 
   <!-- Header -->
   <div class="w-full max-w-md flex items-center justify-between mb-8">
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-bold text-lg">
+      <div class="w-11 h-11 bg-blue-600 rounded-xl flex items-center justify-center font-bold text-lg text-white shadow-lg">
         I
       </div>
       <div>
         <h1 class="font-semibold text-lg">Consulta ICFES</h1>
-        <p class="text-xs text-gray-400">Resultados Saber 11</p>
+        <p class="text-xs text-slate-500 dark:text-gray-400">Resultados Saber 11</p>
       </div>
     </div>
 
-    <div class="flex items-center gap-2 text-xs bg-green-500/10 text-green-400 px-3 py-1.5 rounded-full border border-green-500/20">
-      <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-      API ICFES activa
+    <div class="flex items-center gap-3">
+      <!-- Indicador API -->
+      <div class="hidden sm:flex items-center gap-2 text-xs bg-green-500/10 text-green-600 dark:text-green-400 px-3 py-1.5 rounded-full border border-green-500/20">
+        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+        API activa
+      </div>
+
+      <!-- Botón modo claro/oscuro -->
+      <button onclick="toggleTheme()" class="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:scale-105 transition">
+        <span id="themeIcon">🌙</span>
+      </button>
     </div>
   </div>
 
   <!-- Card principal -->
-  <div class="w-full max-w-md bg-[#1e293b] rounded-2xl p-6 shadow-xl border border-white/5">
+  <div class="w-full max-w-md bg-white dark:bg-[#1e293b] rounded-2xl p-6 shadow-xl border border-slate-200 dark:border-white/5">
     <h2 class="text-xl font-semibold mb-1">Consulta tu puntaje</h2>
-    <p class="text-sm text-gray-400 mb-6">Ingresa tus datos para verificar tu registro</p>
+    <p class="text-sm text-slate-500 dark:text-gray-400 mb-6">Ingresa tus datos para verificar tu registro</p>
 
     <!-- Formulario -->
     <div class="space-y-4">
       <div>
-        <label class="text-xs text-gray-400 mb-1 block">Tipo de documento</label>
-        <select id="tipoDocumento" class="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500">
+        <label class="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Tipo de documento</label>
+        <select id="tipoDocumento" class="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 dark:text-white">
           <option value="TI">Tarjeta de Identidad (TI)</option>
           <option value="CC">Cédula de Ciudadanía (CC)</option>
           <option value="CE">Cédula de Extranjería (CE)</option>
@@ -49,95 +62,10 @@
       </div>
 
       <div>
-        <label class="text-xs text-gray-400 mb-1 block">Número de documento</label>
+        <label class="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Número de documento</label>
         <input id="numeroDocumento" type="text" placeholder="Ej: 1098765432"
-          class="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500" />
+          class="w-full bg-slate-50 dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500 dark:text-white" />
       </div>
 
       <div>
-        <label class="text-xs text-gray-400 mb-1 block">Fecha de nacimiento</label>
-        <input id="fechaNacimiento" type="text" placeholder="dd/mm/yyyy"
-          class="w-full bg-[#0f172a] border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-blue-500" />
-      </div>
-
-      <button onclick="consultar()" id="btnConsultar"
-        class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-3.5 rounded-xl transition-all">
-        Consultar resultados
-      </button>
-    </div>
-
-    <!-- Mensaje importante -->
-    <div class="mt-5 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-sm text-center">
-      Los resultados de <strong>Saber 11 2026</strong> se publican el <strong>25 de septiembre</strong>.
-      <br />Por ahora solo puedes verificar tus datos de registro.
-    </div>
-
-    <!-- Error -->
-    <div id="error" class="hidden mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm text-center"></div>
-
-    <!-- Resultados -->
-    <div id="resultados" class="mt-6 space-y-3 hidden"></div>
-  </div>
-
-  <!-- Footer -->
-  <p class="mt-8 text-xs text-gray-500 text-center">
-    Esta herramienta consulta el backend oficial del ICFES.<br />
-    No almacena tus datos personales.
-  </p>
-
-  <script>
-    async function consultar() {
-      const tipoDocumento = document.getElementById('tipoDocumento').value;
-      const numeroDocumento = document.getElementById('numeroDocumento').value.trim();
-      const fechaNacimiento = document.getElementById('fechaNacimiento').value.trim();
-      const btn = document.getElementById('btnConsultar');
-      const errorDiv = document.getElementById('error');
-      const resultadosDiv = document.getElementById('resultados');
-
-      errorDiv.classList.add('hidden');
-      resultadosDiv.classList.add('hidden');
-      resultadosDiv.innerHTML = '';
-
-      if (!numeroDocumento || !fechaNacimiento) {
-        errorDiv.textContent = 'Completa todos los campos';
-        errorDiv.classList.remove('hidden');
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = 'Consultando...';
-
-      try {
-        const res = await fetch('/api/consulta', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tipoDocumento,
-            numeroDocumento,
-            fechaNacimiento,
-            numeroRegistro: ''
-          })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.error || data.message || 'Error en la consulta');
-        }
-
-        const registros = data.datosAutenticacion || data || [];
-
-        if (registros.length === 0) {
-          errorDiv.textContent = 'No se encontraron registros con esos datos';
-          errorDiv.classList.remove('hidden');
-        } else {
-          resultadosDiv.innerHTML = `
-            <h3 class="text-sm font-medium text-gray-300 mb-3">
-              Se encontraron ${registros.length} registro(s)
-            </h3>
-            ${registros.map(item => `
-              <div class="bg-[#0f172a] border border-white/10 rounded-xl p-4">
-                <div class="flex justify-between items-start mb-2">
-                  <span class="font-medium text-blue-400">${item.numeroRegistro || '—'}</span>
-                  <span class="text-xs text-gray-400">${item.anioExamen || ''} · Período ${item.periodoExamen || ''}</span>
-                </div>
+        <label class="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Fecha de nacimiento</label>
