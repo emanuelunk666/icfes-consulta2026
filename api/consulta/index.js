@@ -3,90 +3,131 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, error: 'Usa POST' });
+    return res.status(405).json({ success: false, message: 'Usa POST' });
   }
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-    const { tipoDocumento, numeroDocumento, fechaNacimiento, numeroRegistro = '' } = body;
+    let { tipoDocumento, numeroDocumento, fechaNacimiento, numeroRegistro = '' } = body;
 
     if (!tipoDocumento || !numeroDocumento || !fechaNacimiento) {
       return res.status(400).json({
         success: false,
-        message: 'Faltan campos obligatorios (tipo de documento, número y fecha de nacimiento)'
+        message: 'Faltan campos: tipo de documento, número y fecha de nacimiento'
       });
     }
 
-    // Formatear fecha
     let fecha = String(fechaNacimiento).trim();
     if (fecha.includes('-')) {
       const [y, m, d] = fecha.split('-');
       fecha = `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
     }
 
-    // 1. Autenticación directa con el ICFES
-    const authRes = await fetch('https://resultadosbackend.icfes.gov.co/api/segurity/autenticacionResultados', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Origin': 'https://resultados.icfes.gov.co',
-        'Referer': 'https://resultados.icfes.gov.co/'
-      },
-      body: JSON.stringify({
-        tipoDocumento: String(tipoDocumento).toUpperCase().trim(),
-        numeroDocumento: String(numeroDocumento).trim(),
-        fechaNacimiento: fecha,
-        numeroRegistro: numeroRegistro || '',
-        captcha: 'dummy_token'
-      })
-    });
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Origin': 'https://resultadossaber11.icfes.gov.co',
+      'Referer': 'https://resultadossaber11.icfes.gov.co/'
+    };
+
+    const authRes = await fetch(
+      'https://resultadosbackend.icfes.gov.co/api/segurity/autenticacionResultados',
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          tipoDocumento: String(tipoDocumento).toUpperCase().trim(),
+          numeroDocumento: String(numeroDocumento).trim(),
+          fechaNacimiento: fecha,
+          numeroRegistro: numeroRegistro || '',
+          captcha: 'dummy_token'
+        })
+      }
+    );
 
     const authData = await authRes.json().catch(() => null);
 
-    if (!authRes.ok || !authData?.token) {
-      // Si el ICFES está saturado
-      if (authRes.status === 429 || authRes.status === 503) {
-        return res.status(200).json({
-          success: false,
-          transient: true,
-          message: 'El ICFES está limitando temporalmente el acceso por alta demanda. Por favor espera unos segundos e intenta de nuevo.'
-        });
-      }
-
+    if (!authRes.ok || !authData?.token || !authData?.datosAutenticacion?.length) {
       return res.status(200).json({
         success: false,
-        message: authData?.message || authData?.error || 'No se encontraron resultados. Verifica el tipo y número de documento, y que la fecha coincida exactamente.'
+        message: authData?.message || authData?.error || 'No se encontraron resultados con esos datos'
       });
     }
 
-    // Si llegó aquí, la autenticación fue exitosa
-    const registro = authData.datosAutenticacion?.[0]?.numeroRegistro || numeroRegistro || '';
-    const anio = authData.datosAutenticacion?.[0]?.anioExamen || '';
+    const examenes = authData.datosAutenticacion;
+    const exam = examenes.sort((a, b) => (b.anioExamen || 0) - (a.anioExamen || 0))[0];
+    const token = authData.token;
+    const registro = exam.numeroRegistro;
+    const examenTipo = exam.datosParametros?.examen || 'SB11';
+    const periodoAnio = exam.datosParametros?.periodoAnioExamen || '';
+    const exapId = exam.exapId || '';
 
-    // Por ahora devolvemos al menos la autenticación exitosa
-    // (el reporte completo requiere más endpoints que cambian)
+    const authHeaders = { ...headers, Authorization: token };
+
+    const basicosUrl = new URL('https://resultadosbackend.icfes.gov.co/api/datos-basicos/datosBasicosRespuesta');
+    basicosUrl.searchParams.set('examen', examenTipo);
+    basicosUrl.searchParams.set('identificacionUnica', registro);
+
+    const basicosRes = await fetch(basicosUrl.toString(), { headers: authHeaders });
+    const basicos = await basicosRes.json().catch(() => null);
+
+    let nombre = 'Estudiante';
+    if (basicos?.camposDatosBasicos) {
+      const campo = basicos.camposDatosBasicos.find(c =>
+        (c.labelDatoBasico || '').toLowerCase().includes('nombre')
+      );
+      if (campo?.valorDatoBasico) nombre = campo.valorDatoBasico;
+    }
+
+    const reporteUrl = new URL('https://resultadosbackend.icfes.gov.co/api/resultados/datosReporteGeneral');
+    reporteUrl.searchParams.set('examen', examenTipo);
+    reporteUrl.searchParams.set('identificacionUnica', registro);
+    if (periodoAnio) reporteUrl.searchParams.set('periodoAnioExamen', String(periodoAnio));
+    if (exapId) reporteUrl.searchParams.set('exapId', String(exapId));
+
+    const reporteRes = await fetch(reporteUrl.toString(), { headers: authHeaders });
+    const reporte = await reporteRes.json().catch(() => null);
+
+    if (!reporteRes.ok || !reporte?.resultadosGenerales) {
+      return res.status(200).json({
+        success: false,
+        message: reporte?.message || 'No se pudieron generar los resultados. Intenta de nuevo.'
+      });
+    }
+
+    const gen = reporte.resultadosGenerales;
+    const puntajes = (reporte.consultarPuntaje?.puntajes || []).map(p => ({
+      codigoPrueba: p.codigoPrueba,
+      nombrePrueba: p.nombrePrueba,
+      puntajePrueba: p.puntajePrueba,
+      ordenPrueba: p.ordenPrueba
+    }));
+
     return res.status(200).json({
       success: true,
-      estudiante: 'Estudiante autenticado',
-      registro: registro,
-      anioExamen: anio,
-      mensaje: 'Autenticación exitosa. El reporte completo se está cargando...',
-      // Nota: para el puntaje completo se necesita otro endpoint que el ICFES protege más
-      token: authData.token
+      estudiante: nombre,
+      registro,
+      anioExamen: exam.anioExamen,
+      examen: examenTipo,
+      puntajeGlobal: Number(gen.puntajeGlobal),
+      puntajeTotalGlobal: Number(gen.puntajeTotalGlobal || 500),
+      percentilNacional: gen.percentilNacional,
+      descripcionPercentil: gen.descripcionPercentilNacional,
+      promedios: gen.promedios || [],
+      puntajes,
+      reporteIndividuales: reporte.reporteIndividuales || [],
+      datosBasicos: basicos?.camposDatosBasicos || []
     });
 
   } catch (err) {
+    console.error(err);
     return res.status(500).json({
       success: false,
-      transient: true,
-      message: 'Error al conectar con el ICFES. Intenta de nuevo en unos segundos.'
+      message: 'Error al conectar con el ICFES. Intenta de nuevo en unos segundos.',
+      details: err.message
     });
   }
 };
