@@ -88,9 +88,8 @@
   </p>
 
 <script>
-  // Cambia esto si usas Cloudflare Worker:
-  // const API_URL = 'https://tu-worker.tu-subdominio.workers.dev/api/consultar';
-  const API_URL = '/api/consulta';
+  // Worker de Cloudflare (ya conectado)
+  const API_URL = 'https://consulta-icfes.emanuel-tenorio.workers.dev/api/consultar';
 
   function toggleTheme() {
     document.documentElement.classList.toggle('dark');
@@ -125,7 +124,6 @@
     btn.textContent = 'En cola / consultando…';
     loading.classList.remove('hidden');
 
-    // Hasta 3 intentos si está saturado
     let data = null;
     for (let intento = 1; intento <= 3; intento++) {
       document.getElementById('loadingHint').textContent =
