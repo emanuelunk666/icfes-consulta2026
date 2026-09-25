@@ -99,7 +99,6 @@
       </div>
     </div>
 
-    <!-- Mensajes de error / saturación -->
     <div id="error" class="hidden mt-5"></div>
   </div>
 
@@ -118,6 +117,7 @@
       document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
       localStorage.setItem('theme', isDark ? 'dark' : 'light');
     }
+
     if (localStorage.getItem('theme') === 'dark') {
       document.documentElement.classList.add('dark');
       document.getElementById('themeIcon').textContent = '☀️';
@@ -161,14 +161,11 @@
 
         if (data.success && data.puntajeGlobal !== undefined) {
           mostrarResultados(data);
-        } 
-        else if (data.transient || (data.message && data.message.toLowerCase().includes('demanda'))) {
+        } else if (data.transient || (data.message && data.message.toLowerCase().includes('demanda'))) {
           mostrarSaturado(data);
-        } 
-        else {
+        } else {
           mostrarError(data.message || data.error || 'No se encontraron resultados. Verifica tus datos.');
         }
-
       } catch (err) {
         mostrarSaturado({ message: 'Error de conexión. El ICFES puede estar saturado.' });
       } finally {
@@ -210,21 +207,32 @@
 
     function mostrarResultados(data) {
       const div = document.getElementById('resultados');
-      const pruebasHTML = (data.pruebas || []).map(p => `
+
+      const lista = data.puntajes || data.pruebas || [];
+      const detalle = data.reporteIndividuales || [];
+
+      const pruebasHTML = lista
+        .slice()
+        .sort((a, b) => (a.ordenPrueba || 0) - (b.ordenPrueba || 0))
+        .map(p => {
+          const extra = detalle.find(d => d.nombrePrueba === p.nombrePrueba) || {};
+          return `
         <div class="flex items-center justify-between py-3 border-b border-slate-100 dark:border-white/5 last:border-0">
           <div>
             <p class="font-medium text-sm">${p.nombrePrueba}</p>
-            <p class="text-xs text-slate-500 dark:text-gray-400">Percentil ${p.percentilNacional || '—'} · Nivel ${p.nivelDesempeno || '—'}</p>
+            <p class="text-xs text-slate-500 dark:text-gray-400">Percentil ${extra.percentilNacional || p.percentilNacional || '—'} · Nivel ${extra.nivelDesempeno || p.nivelDesempeno || '—'}</p>
           </div>
           <div class="text-2xl font-bold text-[#009ca6]">${p.puntajePrueba}</div>
         </div>
-      `).join('');
+      `;
+        })
+        .join('');
 
       div.innerHTML = `
         <div class="bg-white dark:bg-[#151d2e] rounded-2xl shadow-xl border border-slate-200 dark:border-white/5 overflow-hidden">
           <div class="bg-[#009ca6] text-white px-6 py-5">
             <div class="flex items-center justify-between mb-3">
-              <span class="text-xs font-medium bg-white/20 px-2.5 py-1 rounded-full">SABER 11 · 2026</span>
+              <span class="text-xs font-medium bg-white/20 px-2.5 py-1 rounded-full">${data.examen || 'SABER 11'} · ${data.anioExamen || '2026'}</span>
               <span class="text-xs opacity-80">OFICIAL ICFES</span>
             </div>
             <p class="text-sm opacity-90 mb-1">${data.estudiante || 'Estudiante'}</p>
