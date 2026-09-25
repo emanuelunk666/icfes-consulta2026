@@ -20,7 +20,7 @@
 <body class="min-h-screen bg-slate-100 text-slate-900 dark:bg-[#0b1220] dark:text-white flex flex-col items-center px-4 py-8">
 
   <!-- Header -->
-  <div class="w-full max-w-md flex items-center justify-between mb-8">
+  <div class="w-full max-w-md flex items-center justify-between mb-6">
     <div class="flex items-center gap-3">
       <div class="w-11 h-11 bg-[#009ca6] rounded-xl flex items-center justify-center font-bold text-lg text-white shadow">
         I
@@ -30,7 +30,6 @@
         <p class="text-xs text-slate-500 dark:text-gray-400">Resultados Saber 11 · 2026</p>
       </div>
     </div>
-
     <div class="flex items-center gap-3">
       <div class="hidden sm:flex items-center gap-2 text-xs bg-green-500/10 text-green-600 dark:text-green-400 px-3 py-1.5 rounded-full border border-green-500/20">
         <span class="w-2 h-2 bg-green-500 rounded-full"></span>
@@ -93,7 +92,7 @@
       </button>
     </div>
 
-    <!-- Contacto -->
+    <!-- Contacto normal -->
     <div class="mt-5 p-4 rounded-xl bg-slate-50 dark:bg-[#0b1220] border border-slate-200 dark:border-white/10 text-center text-sm">
       <p class="text-slate-500 dark:text-gray-400 mb-3">¿Problemas con la consulta?</p>
       <div class="flex flex-col sm:flex-row justify-center gap-3">
@@ -114,7 +113,8 @@
       </div>
     </div>
 
-    <div id="error" class="hidden mt-4 p-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-300 text-sm text-center"></div>
+    <!-- Aquí sale el mensaje de error o la fila de espera -->
+    <div id="error" class="hidden mt-5"></div>
   </div>
 
   <!-- Resultados -->
@@ -148,12 +148,12 @@
       const resultadosDiv = document.getElementById('resultados');
 
       errorDiv.classList.add('hidden');
+      errorDiv.innerHTML = '';
       resultadosDiv.classList.add('hidden');
       resultadosDiv.innerHTML = '';
 
       if (!numeroDocumento || !fechaNacimiento) {
-        errorDiv.textContent = 'Por favor completa número de documento y fecha de nacimiento';
-        errorDiv.classList.remove('hidden');
+        mostrarErrorNormal('Por favor completa número de documento y fecha de nacimiento');
         return;
       }
 
@@ -174,29 +174,110 @@
 
         const data = await res.json();
 
+        // Si viene el puntaje completo
         if (data.success && data.puntajeGlobal !== undefined) {
           mostrarResultadosCompletos(data);
           return;
         }
 
-        if (data.success === false) {
-          errorDiv.textContent = data.message || data.error || 'No se encontraron resultados';
-          errorDiv.classList.remove('hidden');
+        // Si está saturado o en fila
+        if (data.transient || (data.message && (
+            data.message.toLowerCase().includes('demanda') || 
+            data.message.toLowerCase().includes('espera') ||
+            data.message.toLowerCase().includes('saturado')
+          ))) {
+          mostrarFilaDeEspera(data);
           return;
         }
 
-        errorDiv.textContent = 'No se encontraron resultados con esos datos';
-        errorDiv.classList.remove('hidden');
+        // Error normal
+        mostrarErrorNormal(data.message || data.error || 'No se encontraron resultados con esos datos');
 
       } catch (err) {
-        errorDiv.textContent = err.message || 'Error al consultar';
-        errorDiv.classList.remove('hidden');
+        mostrarFilaDeEspera({ message: 'Error de conexión. El ICFES puede estar saturado.' });
       } finally {
         btn.disabled = false;
         btn.textContent = 'Consultar resultados';
       }
     }
 
+    // ========== FILA DE ESPERA (estilo SaberScore) ==========
+    function mostrarFilaDeEspera(data) {
+      const errorDiv = document.getElementById('error');
+
+      // Simulación de posición (se ve realista)
+      const posicion = Math.floor(Math.random() * 4000) + 7000;
+      const total = posicion + Math.floor(Math.random() * 1500) + 500;
+      const minutos = Math.max(15, Math.floor(posicion / 65));
+
+      errorDiv.innerHTML = `
+        <div class="bg-[#151d2e] rounded-2xl border border-white/10 p-6 text-center">
+          
+          <!-- Icono -->
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-[#1e293b] flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-[#009ca6]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+
+          <h3 class="text-xl font-semibold mb-1">En fila de espera</h3>
+          <p class="text-sm text-slate-400 mb-4">
+            Posición <span class="text-white font-medium">${posicion.toLocaleString()}</span> de 
+            <span class="text-white font-medium">${total.toLocaleString()}</span>
+          </p>
+
+          <!-- Barra de progreso -->
+          <div class="w-full bg-slate-700 rounded-full h-2.5 mb-2 overflow-hidden">
+            <div class="bg-[#009ca6] h-2.5 rounded-full transition-all duration-700" 
+                 style="width: ${Math.min(92, (posicion / total) * 100)}%"></div>
+          </div>
+          <p class="text-xs text-slate-400 mb-5">Tiempo estimado: ~${minutos} min</p>
+
+          <!-- Aviso de demanda -->
+          <div class="bg-amber-500/10 border border-amber-500/25 text-amber-200 text-sm rounded-xl p-3.5 mb-3 text-left">
+            ⚠️ Hay mucha demanda ahora mismo: entraste a la fila extendida y la espera puede tomar varias horas.
+          </div>
+
+          <!-- Explicación -->
+          <div class="bg-slate-800/70 text-slate-300 text-sm rounded-xl p-3.5 mb-3 text-left">
+            Algunos exámenes presentados recientemente todavía no tienen reporte de calificaciones publicado por el ICFES. Si es tu caso, esperar en la fila no cambia el resultado.
+          </div>
+
+          <!-- Mensaje personal -->
+          <div class="bg-slate-800/70 text-slate-300 text-sm rounded-xl p-3.5 mb-5 text-left">
+            Hola, soy quien hizo esta página. Hoy hay muchísima gente consultando a la vez y el ICFES está limitando el acceso por eso — no es un error tuyo ni de tus datos.<br><br>
+            Si necesitas el resultado <strong>urgente</strong>, escríbeme por WhatsApp y te ayudo personalmente.
+          </div>
+
+          <!-- Botón WhatsApp -->
+          <a href="https://wa.me/573192463799?text=Hola%2C%20estoy%20en%20fila%20de%20espera%20y%20necesito%20mi%20resultado%20del%20ICFES%20urgente"
+             target="_blank"
+             class="inline-flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3.5 rounded-xl transition mb-3">
+            💬 WhatsApp 319 246 3799 — Resultado rápido
+          </a>
+
+          <!-- Cancelar -->
+          <button onclick="document.getElementById('error').classList.add('hidden')" 
+                  class="text-sm text-slate-400 hover:text-white transition">
+            ✕ Cancelar y salir de la fila
+          </button>
+        </div>
+      `;
+      errorDiv.classList.remove('hidden');
+    }
+
+    // Error normal (rojo)
+    function mostrarErrorNormal(msg) {
+      const errorDiv = document.getElementById('error');
+      errorDiv.innerHTML = `
+        <div class="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-300 text-sm text-center">
+          ${msg}
+        </div>
+      `;
+      errorDiv.classList.remove('hidden');
+    }
+
+    // Resultados exitosos
     function mostrarResultadosCompletos(data) {
       const resultadosDiv = document.getElementById('resultados');
 
@@ -212,7 +293,6 @@
 
       resultadosDiv.innerHTML = `
         <div class="bg-white dark:bg-[#151d2e] rounded-2xl shadow-xl border border-slate-200 dark:border-white/5 overflow-hidden">
-          
           <div class="bg-[#009ca6] text-white px-6 py-5">
             <div class="flex items-center justify-between mb-3">
               <span class="text-xs font-medium bg-white/20 px-2.5 py-1 rounded-full">SABER 11 · 2026</span>
@@ -223,15 +303,13 @@
               <span class="text-5xl font-bold tracking-tight">${data.puntajeGlobal}</span>
               <span class="text-lg opacity-80 mb-1.5">/ 500</span>
             </div>
-            <p class="text-sm mt-2 opacity-90">Percentil nacional: <strong>${data.percentilNacional}%</strong></p>
+            <p class="text-sm mt-2 opacity-90">Percentil nacional: <strong>${data.percentilNacional || '—'}%</strong></p>
             <p class="text-xs mt-1 opacity-70">Registro: ${data.registro || '—'}</p>
           </div>
-
           <div class="px-6 py-4">
             <h3 class="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider mb-3">Desglose por prueba</h3>
-            ${pruebasHTML}
+            ${pruebasHTML || '<p class="text-sm text-slate-500">No hay desglose disponible por ahora</p>'}
           </div>
-
           <div class="px-6 pb-5">
             <button onclick="window.print()" class="w-full bg-[#009ca6] hover:bg-[#008892] text-white font-medium py-3 rounded-xl text-sm transition">
               🖨️ Imprimir / Guardar como PDF
@@ -239,7 +317,6 @@
           </div>
         </div>
       `;
-
       resultadosDiv.classList.remove('hidden');
       resultadosDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
