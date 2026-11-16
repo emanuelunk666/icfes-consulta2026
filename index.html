@@ -10,6 +10,7 @@
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 dark:bg-[#0b1220] dark:text-white flex flex-col items-center px-4 py-8">
 
+  <!-- HEADER -->
   <div class="w-full max-w-lg flex items-center justify-between mb-6">
     <div class="flex items-center gap-3">
       <div class="w-11 h-11 bg-[#009ca6] rounded-xl flex items-center justify-center font-bold text-lg text-white shadow">I</div>
@@ -23,6 +24,17 @@
     </button>
   </div>
 
+  <!-- PANEL DE ESTADO DEL ICFES (SEMÁFORO) -->
+  <div class="w-full max-w-lg mb-6 bg-white dark:bg-[#151d2e] rounded-xl p-4 shadow-lg border border-slate-200 dark:border-white/5 flex items-center gap-4">
+    <div id="status-dot" class="w-3 h-3 rounded-full bg-yellow-500 shadow-[0_0_10px_#eab308] transition-all"></div>
+    <div class="flex-grow">
+      <div class="text-sm font-semibold">Estado del Servicio</div>
+      <div id="status-text" class="text-xs text-slate-500 dark:text-gray-400">Conectando con el ICFES...</div>
+    </div>
+    <div id="status-latency" class="text-xs text-slate-400 dark:text-gray-500"></div>
+  </div>
+
+  <!-- TARJETA DE FORMULARIO -->
   <div id="formCard" class="w-full max-w-lg bg-white dark:bg-[#151d2e] rounded-2xl p-6 shadow-xl border border-slate-200 dark:border-white/5">
     <h2 class="text-xl font-semibold mb-1">Consulta tu puntaje</h2>
     <p class="text-sm text-slate-500 dark:text-gray-400 mb-6">Ingresa los datos con los que te registraste</p>
@@ -81,6 +93,35 @@
   const API_URL = 'https://consulta-icfes.emanuel-tenorio.workers.dev/api/consultar';
   let lastData = null;
 
+  // --- 1. LÓGICA DEL SEMÁFORO ---
+  async function checkStatus() {
+    try {
+        const res = await fetch('/api/estado');
+        const data = await res.json();
+        
+        const dot = document.getElementById('status-dot');
+        const text = document.getElementById('status-text');
+        const latency = document.getElementById('status-latency');
+        
+        text.innerText = data.message;
+        if(data.latency) latency.innerText = data.latency;
+        
+        if (data.status === 'ok') {
+            dot.className = 'w-3 h-3 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e] transition-all';
+        } else if (data.status === 'slow') {
+            dot.className = 'w-3 h-3 rounded-full bg-yellow-500 shadow-[0_0_10px_#eab308] transition-all';
+        } else {
+            dot.className = 'w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_#ef4444] transition-all';
+        }
+    } catch (e) {
+        document.getElementById('status-text').innerText = "Error al consultar estado.";
+        document.getElementById('status-dot').className = 'w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_#ef4444]';
+    }
+  }
+  checkStatus();
+  setInterval(checkStatus, 10000);
+
+  // --- 2. LÓGICA DE TEMA ---
   function toggleTheme() {
     document.documentElement.classList.toggle('dark');
     const isDark = document.documentElement.classList.contains('dark');
@@ -96,6 +137,7 @@
     return String(s ?? '—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
+  // --- 3. LÓGICA DE CONSULTA ---
   async function consultar() {
     const tipoDocumento = document.getElementById('tipoDocumento').value;
     const numeroDocumento = document.getElementById('numeroDocumento').value.trim();
@@ -267,7 +309,7 @@
     div.scrollIntoView({ behavior: 'smooth' });
   }
 
-  // --- PDF estilo ICFES / SaberScore (naranja) ---
+  // --- 4. GENERADOR DE PDF (Se mantiene igual que tu código original) ---
   function descargarPDF() {
     if (!lastData) return;
     const data = lastData;
@@ -285,11 +327,8 @@
       const blue = [59, 130, 246];
       const footerY = 286;
 
-      // Solo texto seguro para Helvetica (sin flechas unicode)
       function T(s) {
-        return String(s ?? '')
-          .replace(/[^\x20-\x7E\xA0-\xFF]/g, '')
-          .replace(/\u00b0/g, '');
+        return String(s ?? '').replace(/[^\x20-\x7E\xA0-\xFF]/g, '').replace(/\u00b0/g, '');
       }
 
       function header(title) {
@@ -344,7 +383,6 @@
       header('Como entender mis resultados');
       let y = 24;
 
-      // Columna izquierda
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
       doc.setTextColor(...dark);
@@ -379,7 +417,6 @@
         y += Math.max(10, lines.length * 4.2 + 5);
       });
 
-      // Columna derecha
       let yr = 24;
       const rx = 112;
       const rw = W - m - rx;
@@ -445,7 +482,6 @@
       rightTitle('Niveles de desempeno');
       rightBody('Hacen referencia a una descripcion de las habilidades y conocimientos. Cada prueba tiene sus propios niveles. Cada nivel aumenta su dificultad (4 y B+ son los mas altos).');
 
-      // Caja inferior
       doc.setDrawColor(...orange);
       doc.setLineWidth(0.5);
       doc.roundedRect(m, 248, maxW, 26, 2, 2, 'S');
