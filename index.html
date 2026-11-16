@@ -39,15 +39,15 @@
       <p id="status-text" class="text-sm text-slate-500 dark:text-gray-400"></p>
     </div>
 
-    <!-- Tarjetas de métricas (CON CONTADOR REAL) -->
+    <!-- Tarjetas de métricas (CON CONTADORES REALES) -->
     <div class="grid grid-cols-3 gap-3">
       <div class="bg-slate-50 dark:bg-[#0b1220] p-3 rounded-xl border border-slate-200 dark:border-white/5 text-center">
         <p id="visitas-hoy" class="text-2xl font-bold text-slate-800 dark:text-white">--</p>
         <p class="text-[10px] uppercase text-slate-500 dark:text-gray-500">Visitas totales</p>
       </div>
       <div class="bg-slate-50 dark:bg-[#0b1220] p-3 rounded-xl border border-slate-200 dark:border-white/5 text-center">
-        <p class="text-2xl font-bold text-slate-800 dark:text-white">70</p>
-        <p class="text-[10px] uppercase text-slate-500 dark:text-gray-500">Resueltos / min</p>
+        <p id="consultas-exitosas" class="text-2xl font-bold text-slate-800 dark:text-white">--</p>
+        <p class="text-[10px] uppercase text-slate-500 dark:text-gray-500">Consultas exitosas</p>
       </div>
       <div class="bg-slate-50 dark:bg-[#0b1220] p-3 rounded-xl border border-slate-200 dark:border-white/5 text-center">
         <p class="text-2xl font-bold text-green-500">98%</p>
@@ -180,17 +180,24 @@
   checkStatus();
   setInterval(checkStatus, 10000);
 
-  // --- 2. LÓGICA DEL CONTADOR DE VISITAS ---
-  async function cargarVisitas() {
+  // --- 2. LÓGICA DE CONTADORES (VISITAS Y EXITOSAS) ---
+  async function cargarContadores() {
     try {
-      const res = await fetch('https://countapi.mileshilliard.com/api/v1/hit/icfes-consulta2026/visitas');
-      const data = await res.json();
-      document.getElementById('visitas-hoy').innerText = data.value.toLocaleString();
+      // Sumar visita
+      const resVisitas = await fetch('https://countapi.mileshilliard.com/api/v1/hit/icfes-consulta2026/visitas');
+      const dataVisitas = await resVisitas.json();
+      document.getElementById('visitas-hoy').innerText = dataVisitas.value.toLocaleString();
+
+      // Obtener consultas exitosas (sin sumar)
+      const resExitosas = await fetch('https://countapi.mileshilliard.com/api/v1/get/icfes-consulta2026/exitosas');
+      const dataExitosas = await resExitosas.json();
+      document.getElementById('consultas-exitosas').innerText = dataExitosas.value ? dataExitosas.value.toLocaleString() : "0";
     } catch (e) {
       document.getElementById('visitas-hoy').innerText = "0";
+      document.getElementById('consultas-exitosas').innerText = "0";
     }
   }
-  cargarVisitas();
+  cargarContadores();
 
   // --- 3. LÓGICA DE TEMA ---
   function toggleTheme() {
@@ -257,6 +264,15 @@
 
     if (data && data.success && data.puntajeGlobal !== undefined) {
       lastData = data;
+      
+      // --- SUMAR 1 AL CONTADOR DE CONSULTAS EXITOSAS ---
+      fetch('https://countapi.mileshilliard.com/api/v1/hit/icfes-consulta2026/exitosas')
+        .then(res => res.json())
+        .then(resData => {
+            document.getElementById('consultas-exitosas').innerText = resData.value.toLocaleString();
+        })
+        .catch(() => {});
+
       mostrarResultados(data);
     } else if (data && data.transient) {
       mostrarSaturado(data);
