@@ -39,7 +39,7 @@
       <p id="status-text" class="text-sm text-slate-500 dark:text-gray-400"></p>
     </div>
 
-    <!-- Tarjetas de métricas (CON CONTADORES REALES) -->
+    <!-- Tarjetas de métricas (REALES) -->
     <div class="grid grid-cols-3 gap-3">
       <div class="bg-slate-50 dark:bg-[#0b1220] p-3 rounded-xl border border-slate-200 dark:border-white/5 text-center">
         <p id="visitas-hoy" class="text-2xl font-bold text-slate-800 dark:text-white">--</p>
@@ -50,8 +50,8 @@
         <p class="text-[10px] uppercase text-slate-500 dark:text-gray-500">Consultas exitosas</p>
       </div>
       <div class="bg-slate-50 dark:bg-[#0b1220] p-3 rounded-xl border border-slate-200 dark:border-white/5 text-center">
-        <p class="text-2xl font-bold text-green-500">98%</p>
-        <p class="text-[10px] uppercase text-slate-500 dark:text-gray-500">Éxito reciente</p>
+        <p id="exito-reciente" class="text-2xl font-bold text-green-500">--</p>
+        <p class="text-[10px] uppercase text-slate-500 dark:text-gray-500">% Éxito real</p>
       </div>
     </div>
   </div>
@@ -145,7 +145,7 @@
   const API_URL = 'https://consulta-icfes.emanuel-tenorio.workers.dev/api/consultar';
   let lastData = null;
 
-  // --- 1. LÓGICA DEL SEMÁFORO ---
+  // --- 1. SEMÁFORO ---
   async function checkStatus() {
     try {
         const res = await fetch('/api/estado');
@@ -180,18 +180,22 @@
   checkStatus();
   setInterval(checkStatus, 10000);
 
-  // --- 2. LÓGICA DE CONTADORES (VISITAS Y EXITOSAS) ---
+  // --- 2. CONTADORES ---
   async function cargarContadores() {
     try {
-      // Sumar visita
+      // Visitas (suma)
       const resVisitas = await fetch('https://countapi.mileshilliard.com/api/v1/hit/icfes-consulta2026/visitas');
       const dataVisitas = await resVisitas.json();
       document.getElementById('visitas-hoy').innerText = dataVisitas.value.toLocaleString();
 
-      // Obtener consultas exitosas (sin sumar)
+      // Exitosas (solo lee)
       const resExitosas = await fetch('https://countapi.mileshilliard.com/api/v1/get/icfes-consulta2026/exitosas');
       const dataExitosas = await resExitosas.json();
       document.getElementById('consultas-exitosas').innerText = dataExitosas.value ? dataExitosas.value.toLocaleString() : "0";
+      
+      // Porcentaje
+      actualizarPorcentaje();
+      
     } catch (e) {
       document.getElementById('visitas-hoy').innerText = "0";
       document.getElementById('consultas-exitosas').innerText = "0";
@@ -199,7 +203,27 @@
   }
   cargarContadores();
 
-  // --- 3. LÓGICA DE TEMA ---
+  async function actualizarPorcentaje() {
+    try {
+      const resIntentos = await fetch('https://countapi.mileshilliard.com/api/v1/get/icfes-consulta2026/intentos');
+      const dataIntentos = await resIntentos.json();
+      
+      const resExitosas = await fetch('https://countapi.mileshilliard.com/api/v1/get/icfes-consulta2026/exitosas');
+      const dataExitosas = await resExitosas.json();
+      
+      const el = document.getElementById('exito-reciente');
+      if (dataIntentos.value > 0) {
+        const porcentaje = Math.round((dataExitosas.value / dataIntentos.value) * 100);
+        el.innerText = porcentaje + '%';
+      } else {
+        el.innerText = "0%";
+      }
+    } catch (e) {
+      document.getElementById('exito-reciente').innerText = "--";
+    }
+  }
+
+  // --- 3. TEMA ---
   function toggleTheme() {
     document.documentElement.classList.toggle('dark');
     const isDark = document.documentElement.classList.contains('dark');
@@ -215,7 +239,7 @@
     return String(s ?? '—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  // --- 4. LÓGICA DE CONSULTA ---
+  // --- 4. CONSULTA ---
   async function consultar() {
     const tipoDocumento = document.getElementById('tipoDocumento').value;
     const numeroDocumento = document.getElementById('numeroDocumento').value.trim();
@@ -237,6 +261,9 @@
     btn.disabled = true;
     btn.textContent = 'En cola / consultando…';
     loading.classList.remove('hidden');
+
+    // Sumar intento
+    fetch('https://countapi.mileshilliard.com/api/v1/hit/icfes-consulta2026/intentos').catch(() => {});
 
     let data = null;
     for (let intento = 1; intento <= 3; intento++) {
@@ -265,11 +292,12 @@
     if (data && data.success && data.puntajeGlobal !== undefined) {
       lastData = data;
       
-      // --- SUMAR 1 AL CONTADOR DE CONSULTAS EXITOSAS ---
+      // Sumar exitosa
       fetch('https://countapi.mileshilliard.com/api/v1/hit/icfes-consulta2026/exitosas')
         .then(res => res.json())
         .then(resData => {
             document.getElementById('consultas-exitosas').innerText = resData.value.toLocaleString();
+            actualizarPorcentaje();
         })
         .catch(() => {});
 
@@ -396,7 +424,7 @@
     div.scrollIntoView({ behavior: 'smooth' });
   }
 
-  // --- 5. GENERADOR DE PDF ---
+  // --- 5. PDF ---
   function descargarPDF() {
     if (!lastData) return;
     const data = lastData;
