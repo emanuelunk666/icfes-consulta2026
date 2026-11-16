@@ -1,8 +1,12 @@
 module.exports = async (req, res) => {
+  // 1. Configuración de CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
+  // Evitar caché de Vercel
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, message: 'Usa POST' });
@@ -29,6 +33,7 @@ module.exports = async (req, res) => {
     return fetch(url, options);
   }
 
+  // 2. Bloque principal con try/catch global
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
     let { tipoDocumento, numeroDocumento, fechaNacimiento, numeroRegistro = '' } = body;
@@ -54,7 +59,7 @@ module.exports = async (req, res) => {
       Referer: 'https://resultadossaber11.icfes.gov.co/'
     };
 
-    // 1. Petición de Autenticación
+    // 3. Petición de autenticación (Sin dummy_token)
     const authRes = await fetchRetry(
       'https://resultadosbackend.icfes.gov.co/api/segurity/autenticacionResultados',
       {
@@ -65,18 +70,18 @@ module.exports = async (req, res) => {
           numeroDocumento: String(numeroDocumento).trim(),
           fechaNacimiento: fecha,
           numeroRegistro: numeroRegistro || ''
-          // Quitamos el dummy_token
         })
-      }
+      },
+      2 // Intentar solo 2 veces para no colgar Vercel
     );
 
-    // Si el ICFES nos bloquea o pide captcha, lo atrapamos aquí
+    // Si el ICFES responde con error (400, 403, 500)
     if (!authRes.ok) {
       const errorData = await authRes.json().catch(() => null);
       return res.status(200).json({
         success: false,
         message: `El ICFES rechazó la petición (Status: ${authRes.status})`,
-        details: errorData // Aquí veremos si es por captcha o por IP
+        details: errorData || 'Sin detalles'
       });
     }
 
@@ -90,7 +95,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    // 2. Petición de Datos (Token)
+    // 4. Petición de Datos
     const examenes = authData.datosAutenticacion;
     const exam = examenes.sort((a, b) => (b.anioExamen || 0) - (a.anioExamen || 0))[0];
     const token = authData.token;
@@ -100,7 +105,7 @@ module.exports = async (req, res) => {
     const exapId = exam.exapId || '';
     const authHeaders = { ...headers, Authorization: token };
 
-    // 3. Datos básicos
+    // 5. Datos básicos
     const basicosUrl = new URL('https://resultadosbackend.icfes.gov.co/api/datos-basicos/datosBasicosRespuesta');
     basicosUrl.searchParams.set('examen', examenTipo);
     basicosUrl.searchParams.set('identificacionUnica', registro);
@@ -116,20 +121,21 @@ module.exports = async (req, res) => {
       if (campo?.valorDatoBasico) nombre = campo.valorDatoBasico;
     }
 
-    // 4. Reporte general
+    // 6. Reporte general
     const reporteUrl = new URL('https://resultadosbackend.icfes.gov.co/api/resultados/datosReporteGeneral');
     reporteUrl.searchParams.set('examen', examenTipo);
     reporteUrl.searchParams.set('identificacionUnica', registro);
     if (periodoAnio) reporteUrl.searchParams.set('periodoAnioExamen', String(periodoAnio));
     if (exapId) reporteUrl.searchParams.set('exapId', String(exapId));
 
-    const reporteRes = await fetchRetry(reporteUrl.toString(), { headers: authHeaders }, 3);
+    const reporteRes = await fetchRetry(reporteUrl.toString(), { headers: authHeaders }, 2);
     const reporte = await reporteRes.json().catch(() => null);
 
     if (!reporteRes.ok || !reporte?.resultadosGenerales) {
       return res.status(200).json({
         success: false,
-        message: 'El examen está registrado pero el reporte no está disponible.'
+        message: 'El examen está registrado pero el reporte no está disponible.',
+        details: reporte
       });
     }
 
@@ -141,6 +147,7 @@ module.exports = async (req, res) => {
       ordenPrueba: p.ordenPrueba
     }));
 
+    // 7. Respuesta exitosa
     return res.status(200).json({
       success: true,
       estudiante: nombre,
@@ -156,12 +163,15 @@ module.exports = async (req, res) => {
       reporteIndividuales: reporte.reporteIndividuales || [],
       datosBasicos: basicos?.camposDatosBasicos || []
     });
+
   } catch (err) {
-    console.error(err);
+    // 8. Catch global: Si cualquier cosa falla, Vercel nos dice qué fue
+    console.error("Error crítico en el backend:", err);
     return res.status(200).json({
       success: false,
-      message: 'Error de conexión con el ICFES.',
-      details: err.message
+      message: 'Error crítico en el backend.',
+      details: err.message,
+      stack: err.stack // Esto nos dirá la línea exacta si algo se rompe
     });
   }
 };
