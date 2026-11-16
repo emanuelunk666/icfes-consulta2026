@@ -24,7 +24,7 @@
     </button>
   </div>
 
-  <!-- PANEL DE ESTADO ESTILO NUU LM -->
+  <!-- PANEL DE ESTADO -->
   <div class="w-full max-w-lg bg-white dark:bg-[#151d2e] rounded-2xl p-6 shadow-xl border border-slate-200 dark:border-white/5 mb-6">
     <div class="flex items-center justify-between mb-6">
       <div>
@@ -39,11 +39,11 @@
       <p id="status-text" class="text-sm text-slate-500 dark:text-gray-400"></p>
     </div>
 
-    <!-- Tarjetas de métricas -->
+    <!-- Tarjetas de métricas (CON CONTADOR REAL) -->
     <div class="grid grid-cols-3 gap-3">
       <div class="bg-slate-50 dark:bg-[#0b1220] p-3 rounded-xl border border-slate-200 dark:border-white/5 text-center">
-        <p class="text-2xl font-bold text-slate-800 dark:text-white">15.461</p>
-        <p class="text-[10px] uppercase text-slate-500 dark:text-gray-500">En fila ahora</p>
+        <p id="visitas-hoy" class="text-2xl font-bold text-slate-800 dark:text-white">--</p>
+        <p class="text-[10px] uppercase text-slate-500 dark:text-gray-500">Visitas totales</p>
       </div>
       <div class="bg-slate-50 dark:bg-[#0b1220] p-3 rounded-xl border border-slate-200 dark:border-white/5 text-center">
         <p class="text-2xl font-bold text-slate-800 dark:text-white">70</p>
@@ -180,7 +180,19 @@
   checkStatus();
   setInterval(checkStatus, 10000);
 
-  // --- 2. LÓGICA DE TEMA ---
+  // --- 2. LÓGICA DEL CONTADOR DE VISITAS ---
+  async function cargarVisitas() {
+    try {
+      const res = await fetch('https://countapi.mileshilliard.com/api/v1/hit/icfes-consulta2026/visitas');
+      const data = await res.json();
+      document.getElementById('visitas-hoy').innerText = data.value.toLocaleString();
+    } catch (e) {
+      document.getElementById('visitas-hoy').innerText = "0";
+    }
+  }
+  cargarVisitas();
+
+  // --- 3. LÓGICA DE TEMA ---
   function toggleTheme() {
     document.documentElement.classList.toggle('dark');
     const isDark = document.documentElement.classList.contains('dark');
@@ -196,7 +208,7 @@
     return String(s ?? '—').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  // --- 3. LÓGICA DE CONSULTA ---
+  // --- 4. LÓGICA DE CONSULTA ---
   async function consultar() {
     const tipoDocumento = document.getElementById('tipoDocumento').value;
     const numeroDocumento = document.getElementById('numeroDocumento').value.trim();
@@ -368,7 +380,7 @@
     div.scrollIntoView({ behavior: 'smooth' });
   }
 
-  // --- 4. GENERADOR DE PDF ---
+  // --- 5. GENERADOR DE PDF ---
   function descargarPDF() {
     if (!lastData) return;
     const data = lastData;
