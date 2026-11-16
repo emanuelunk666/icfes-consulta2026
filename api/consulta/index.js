@@ -2,6 +2,7 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, message: 'Usa POST' });
@@ -53,6 +54,7 @@ module.exports = async (req, res) => {
       Referer: 'https://resultadossaber11.icfes.gov.co/'
     };
 
+    // 1. Petición de Autenticación
     const authRes = await fetchRetry(
       'https://resultadosbackend.icfes.gov.co/api/segurity/autenticacionResultados',
       {
@@ -62,33 +64,33 @@ module.exports = async (req, res) => {
           tipoDocumento: String(tipoDocumento).toUpperCase().trim(),
           numeroDocumento: String(numeroDocumento).trim(),
           fechaNacimiento: fecha,
-          numeroRegistro: numeroRegistro || '',
-          captcha: 'dummy_token'
+          numeroRegistro: numeroRegistro || ''
+          // Quitamos el dummy_token
         })
-      },
-      3
+      }
     );
+
+    // Si el ICFES nos bloquea o pide captcha, lo atrapamos aquí
+    if (!authRes.ok) {
+      const errorData = await authRes.json().catch(() => null);
+      return res.status(200).json({
+        success: false,
+        message: `El ICFES rechazó la petición (Status: ${authRes.status})`,
+        details: errorData // Aquí veremos si es por captcha o por IP
+      });
+    }
 
     const authData = await authRes.json().catch(() => null);
 
-    if (authRes.status === 429 || authRes.status === 503) {
+    if (!authData?.token || !authData?.datosAutenticacion?.length) {
       return res.status(200).json({
         success: false,
-        transient: true,
-        message: 'El ICFES está saturado. Espera 20–30 segundos e intenta de nuevo.'
+        message: 'No se encontraron resultados. Verifica los datos.',
+        details: authData
       });
     }
 
-    if (!authRes.ok || !authData?.token || !authData?.datosAutenticacion?.length) {
-      return res.status(200).json({
-        success: false,
-        message:
-          authData?.message ||
-          authData?.error ||
-          'No se encontraron resultados. Verifica tipo de documento, número y fecha de nacimiento.'
-      });
-    }
-
+    // 2. Petición de Datos (Token)
     const examenes = authData.datosAutenticacion;
     const exam = examenes.sort((a, b) => (b.anioExamen || 0) - (a.anioExamen || 0))[0];
     const token = authData.token;
@@ -98,10 +100,8 @@ module.exports = async (req, res) => {
     const exapId = exam.exapId || '';
     const authHeaders = { ...headers, Authorization: token };
 
-    // Datos básicos
-    const basicosUrl = new URL(
-      'https://resultadosbackend.icfes.gov.co/api/datos-basicos/datosBasicosRespuesta'
-    );
+    // 3. Datos básicos
+    const basicosUrl = new URL('https://resultadosbackend.icfes.gov.co/api/datos-basicos/datosBasicosRespuesta');
     basicosUrl.searchParams.set('examen', examenTipo);
     basicosUrl.searchParams.set('identificacionUnica', registro);
 
@@ -116,10 +116,8 @@ module.exports = async (req, res) => {
       if (campo?.valorDatoBasico) nombre = campo.valorDatoBasico;
     }
 
-    // Reporte
-    const reporteUrl = new URL(
-      'https://resultadosbackend.icfes.gov.co/api/resultados/datosReporteGeneral'
-    );
+    // 4. Reporte general
+    const reporteUrl = new URL('https://resultadosbackend.icfes.gov.co/api/resultados/datosReporteGeneral');
     reporteUrl.searchParams.set('examen', examenTipo);
     reporteUrl.searchParams.set('identificacionUnica', registro);
     if (periodoAnio) reporteUrl.searchParams.set('periodoAnioExamen', String(periodoAnio));
@@ -128,20 +126,10 @@ module.exports = async (req, res) => {
     const reporteRes = await fetchRetry(reporteUrl.toString(), { headers: authHeaders }, 3);
     const reporte = await reporteRes.json().catch(() => null);
 
-    if (reporteRes.status === 429 || reporteRes.status === 503) {
-      return res.status(200).json({
-        success: false,
-        transient: true,
-        message: 'El ICFES está saturado al cargar el reporte. Espera un momento e intenta de nuevo.'
-      });
-    }
-
     if (!reporteRes.ok || !reporte?.resultadosGenerales) {
       return res.status(200).json({
         success: false,
-        message:
-          reporte?.message ||
-          'El examen está registrado pero el reporte aún no está disponible o no se pudo generar.'
+        message: 'El examen está registrado pero el reporte no está disponible.'
       });
     }
 
@@ -172,8 +160,7 @@ module.exports = async (req, res) => {
     console.error(err);
     return res.status(200).json({
       success: false,
-      transient: true,
-      message: 'Error al conectar con el ICFES. Intenta de nuevo en unos segundos.',
+      message: 'Error de conexión con el ICFES.',
       details: err.message
     });
   }
